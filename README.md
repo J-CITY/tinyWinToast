@@ -8,7 +8,7 @@ so I write this lib.
 
 # Installation
 
-...
+pip install tinyWinToast
 
 # Examples:
 
