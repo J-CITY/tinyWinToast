@@ -1,2 +1,7 @@
 
 *.pyc
+tinyWinToast.egg-info/dependency_links.txt
+tinyWinToast.egg-info/PKG-INFO
+tinyWinToast.egg-info/SOURCES.txt
+tinyWinToast.egg-info/top_level.txt
+dist/tinyWinToast-1.0.tar.gz
