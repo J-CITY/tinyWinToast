@@ -19,7 +19,7 @@ Simple start:
 To create simple toast:
 
 ```python
-getToast("Title", "Message", 'C:/Users/333da/Desktop/wintoast/0.jpg', crop="circle", duration="short", appId="MyApp", isMute=True).show()
+getToast("Title", "Message", 'icon.jpg', crop="circle", duration="short", appId="MyApp", isMute=True).show()
 ```
 
 Or you can create toast object
