@@ -36,66 +36,64 @@ ACTION_BUTTON = "button"
 
 class Config:
 	def __init__(self):
-		pass
+		# for dynamic toast update need set tag and group
+		self.TAG = ""
+		self.GROUP = ""
 
-	# for dynamic toast update need set tag and group
-	TAG = ""
-	GROUP = ""
+		#Application id
+		self.APP_ID = DEFAULT_APP_ID
 
-	#Application id
-	APP_ID = DEFAULT_APP_ID
-	
-	# foreground | background | protocol | system
-	# ACTION_TYPE_PROTOCOL
-	# ACTION_TYPE_BACKGROUND
-	# ACTION_TYPE_FOREGROUND
-	# ACTION_TYPE_SYSTEM
-	ACTION_TYPE = ACTION_TYPE_PROTOCOL
-	
-	ACTION_ARGUMENT = ""
-	
-	# - default | alarm | reminder | incomingCall"
-	# SCENARIO_DEFAULT 
-	# SCENARIO_ALARM 
-	# SCENARIO_REMINDER 
-	# SCENARIO_INCOMING_CALL 
-	SCENARIO = SCENARIO_DEFAULT
+		# foreground | background | protocol | system
+		# ACTION_TYPE_PROTOCOL
+		# ACTION_TYPE_BACKGROUND
+		# ACTION_TYPE_FOREGROUND
+		# ACTION_TYPE_SYSTEM
+		self.ACTION_TYPE = ACTION_TYPE_PROTOCOL
 
-	# short - 5sec - DURATION_SHORT
-	# long - 25 sec - DURATION_SHORT
-	DURATION = DURATION_SHORT
+		self.ACTION_ARGUMENT = ""
 
-	BASE_URI = ""
+		# - default | alarm | reminder | incomingCall"
+		# SCENARIO_DEFAULT 
+		# SCENARIO_ALARM 
+		# SCENARIO_REMINDER 
+		# SCENARIO_INCOMING_CALL 
+		self.SCENARIO = SCENARIO_DEFAULT
 
-	# [0] - TITLE
-	# [1] - MESSAGE
-	# [2]... other message
-	TEXTS = []
-	
-	ICO_IMAGE = ()
+		# short - 5sec - DURATION_SHORT
+		# long - 25 sec - DURATION_SHORT
+		self.DURATION = DURATION_SHORT
 
-	HERO_IMAGE = ()
+		self.BASE_URI = ""
 
-	IMAGE = []
+		# [0] - TITLE
+		# [1] - MESSAGE
+		# [2]... other message
+		self.TEXTS = []
 
-	# in ISO 8601
-	TIME = ""
+		self.ICO_IMAGE = ()
 
-	# true to set current time
-	SET_CUT_TIME = False
+		self.HERO_IMAGE = ()
 
-	PROGRESS = []
+		self.IMAGE = []
 
-	HEADER = None
+		# in ISO 8601
+		self.TIME = ""
 
-	TEXTS_GROUP_LEFT = []
-	TEXTS_GROUP_RIGHT = []
+		# true to set current time
+		self.SET_CUT_TIME = False
 
-	_WITH_ACTIONS = False
+		self.PROGRESS = []
 
-	ACTIONS = []
+		self.HEADER = None
 
-	AUDIO=None
+		self.TEXTS_GROUP_LEFT = []
+		self.TEXTS_GROUP_RIGHT = []
+
+		self._WITH_ACTIONS = False
+
+		self.ACTIONS = []
+
+		self.AUDIO = None
 
 class Audio:
 	def __init__(self, isSilent=False, src="", isLoop=False):
@@ -171,7 +169,7 @@ class Input:
 		self.defaultInput = defaultInput
 
 	def addSelection(self, id, content):
-		selection.append(id, content)
+		self.selections.append(id, content)
 
 class Toast:
 	def __init__(self, config=None):
@@ -344,6 +342,7 @@ class Toast:
 		"""
 		self.config._WITH_ACTIONS = True
 		self.config.ACTIONS.append(("button", button))
+		print(len(self.config.ACTIONS))
 
 	def addInput(self, input):
 		"""Add input to toast
@@ -549,6 +548,10 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 
 		toaststr = head + '\n' + doc.toprettyxml(indent="	").split("\n",1)[1] + '\n' + tail
 		return toaststr
+
+	def generateScript(self):
+		"""Generate ps1 script"""
+		return self.__genXML()
 
 	def show(self):
 		"""Show toast"""
