@@ -24,6 +24,27 @@ getToast("Title", "Message", 'icon.jpg', crop="circle", duration="short", appId=
 
 Or you can create toast object
 
+New# Button and Inputs callback (WIP)
+TODO: Need way run PS1 script and not close the process
+```python
+toast = Toast()
+toast.config.USE_ACTIONS_CALLBACK = True # Set that we get information about actions
+toast.setTitle("TITLE", maxLines=1)
+toast.setMessage("MESSAGE", maxLines=1)
+toast.addButton(
+    Button(content="Button", activationType=ACTION_TYPE_BACKGROUND,
+           arguments="Button", pendingUpdate=False))
+toast.addInput(Input(inputId="Text", intype=INPUT_TEXT, placeHolderContent="Input text..."))
+toast.addInput(Input(inputId="Select", intype=INPUT_SELECTION, selections = [("1","Yes"), ("2","No"), ("3","Maybe")], defaultInput="1"))
+toast.show()
+
+time.sleep(9)
+
+print(toast.getEventListenerOutput())
+#TOAST_DATA:arguments:Button;textBox:[[Select, 1],[Text, 42],];
+```
+
+
 0# Simple toast
 
 ```python

@@ -1,37 +1,41 @@
+# Docks:
+# https://github.com/GitHub30/toast-notification-examples
+# https://learn.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=xml
 
 import datetime
 from xml.dom import minidom
 import os
 import subprocess
+import io
 
-TEXT_ALIGN_LEFT = "left" 
-TEXT_ALIGN_RIGHT = "right" 
+TEXT_ALIGN_LEFT = "left"
+TEXT_ALIGN_RIGHT = "right"
 
-TEXT_STYLE_CAPTION_SUBTLE = "captionSubtle" 
+TEXT_STYLE_CAPTION_SUBTLE = "captionSubtle"
 TEXT_STYLE_BASE = "base" 
 
-CROP_NONE = "none" 
-CROP_CIRCLE = "circle" 
+CROP_NONE = "none"
+CROP_CIRCLE = "circle"
 
-DURATION_SHORT = "short" 
-DURATION_LONG = "long" 
+DURATION_SHORT = "short"
+DURATION_LONG = "long"
 
-DEFAULT_APP_ID = "TiniWinToastApp" 
+DEFAULT_APP_ID = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\\v1.0\powershell.exe"
 
-ACTION_TYPE_PROTOCOL = "protocol" 
-ACTION_TYPE_BACKGROUND = "background" 
-ACTION_TYPE_FOREGROUND = "foreground" 
-ACTION_TYPE_SYSTEM = "system" 
+ACTION_TYPE_PROTOCOL = "protocol"
+ACTION_TYPE_BACKGROUND = "background"
+ACTION_TYPE_FOREGROUND = "foreground"
+ACTION_TYPE_SYSTEM = "system"
 
-SCENARIO_DEFAULT = "default" 
-SCENARIO_ALARM = "alarm" 
-SCENARIO_REMINDER = "reminder" 
-SCENARIO_INCOMING_CALL = "incomingCall" 
+SCENARIO_DEFAULT = "default"
+SCENARIO_ALARM = "alarm"
+SCENARIO_REMINDER = "reminder"
+SCENARIO_INCOMING_CALL = "incomingCall"
 
-INPUT_TEXT = "text" 
-INPUT_SELECTION = "selection" 
+INPUT_TEXT = "text"
+INPUT_SELECTION = "selection"
 
-ACTION_INPUT = "input" 
+ACTION_INPUT = "input"
 ACTION_BUTTON = "button"
 
 class Config:
@@ -94,6 +98,8 @@ class Config:
 		self.ACTIONS = []
 
 		self.AUDIO = None
+
+		self.USE_ACTIONS_CALLBACK = None
 
 class Audio:
 	def __init__(self, isSilent=False, src="", isLoop=False):
@@ -171,6 +177,15 @@ class Input:
 	def addSelection(self, id, content):
 		self.selections.append(id, content)
 
+def Init():
+	"""Load PoshWinRT.dll for button callback"""
+	script = '''Invoke-WebRequest https://github.com/GitHub30/PoshWinRT/releases/download/1.2/PoshWinRT.dll -OutFile PoshWinRT.dll'''
+	path = os.path.dirname(os.path.realpath(__file__)) + "\\"
+	text_file = open(path + "script.ps1", "w")
+	text_file.write(script)
+	text_file.close()
+	subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "script.ps1"])
+	os.remove(path + "script.ps1")
 class Toast:
 	def __init__(self, config=None):
 		"""Init
@@ -342,7 +357,6 @@ class Toast:
 		"""
 		self.config._WITH_ACTIONS = True
 		self.config.ACTIONS.append(("button", button))
-		print(len(self.config.ACTIONS))
 
 	def addInput(self, input):
 		"""Add input to toast
@@ -485,6 +499,10 @@ $APP_ID = '{0}'""".format(self.config.APP_ID)
 			actions = doc.createElement('actions')
 			toast.appendChild(actions)
 
+			def sortF(val):
+				return val[0] 
+			self.config.ACTIONS.sort(key=sortF, reverse=True)
+
 			for a in self.config.ACTIONS:
 				t = a[0]
 
@@ -537,6 +555,26 @@ $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
 $xml.LoadXml($template)
 $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 '''
+		if self.config.USE_ACTIONS_CALLBACK:
+			tail += '''
+function WrapToastEvent {
+  param($target, $eventName)
+
+  Add-Type -Path PoshWinRT.dll
+  $wrapper = new-object "PoshWinRT.EventWrapper[Windows.UI.Notifications.ToastNotification,System.Object]"
+  $wrapper.Register($target, $eventName)
+}
+
+Register-ObjectEvent -InputObject (WrapToastEvent $toast 'Activated') -EventName FireEvent -Action {
+  $setStr = "["
+  foreach ($h in $args[1].Result.userinput) {
+    $setStr = $setStr + "$($h),"
+  }
+  $setStr = $setStr + "]"
+  $formattedString = "TOAST_DATA:arguments:{0};textBox:{1};" -f $args[1].Result.Arguments, $setStr
+  Write-Output $formattedString | Out-File -FilePath ./Output;
+}
+'''
 		if self.config.TAG != "":
 			tail += "$toast.Tag = $tag\n"
 		if self.config.GROUP != "":
@@ -545,8 +583,12 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($APP_ID)'''
 	
 		tail += '.Show($toast)'
-
+		#TODO: try remove this hack
+		if self.config.USE_ACTIONS_CALLBACK:
+			tail += '\nStart-Sleep -Seconds 15'
 		toaststr = head + '\n' + doc.toprettyxml(indent="	").split("\n",1)[1] + '\n' + tail
+
+		#print(toaststr)
 		return toaststr
 
 	def generateScript(self):
@@ -560,8 +602,31 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 		text_file = open(path + "toast.ps1", "w")
 		text_file.write(toaststr)
 		text_file.close()
+		#if self.config.USE_ACTIONS_CALLBACK:
+		#	self.process = subprocess.Popen(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "toast.ps1"], stdout=subprocess.PIPE)
+		#else:
 		subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "toast.ps1"])
-		os.remove(path + "toast.ps1")
+		#os.remove(path + "toast.ps1")
+
+	#TODO: add file watch
+	def getEventListenerOutput(self):
+		with open('./Output', 'r') as file:
+			return file.read()
+
+		#if self.process is None:
+		#	return ""
+		#result = []
+		#for line in io.TextIOWrapper(self.process.stdout, encoding="utf-8"):
+		#	print(line)
+		#	if (line.startswith("TOAST_DATA:")):
+		#		result.append(line)
+		#return result
+	
+	#def killListener(self):
+	#	if self.process is None:
+	#		return
+	#	self.process.kill()
+	#	self.process = None
 
 	def update(self, sequenceId, data):
 		"""Update toast"""
@@ -643,6 +708,20 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 		:scriptPath: script.ps1 path
 		"""
 		subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", scriptPath])
+
+	def clearToasts(self):
+		"""Clear toast from app with APP_ID"""
+
+		script = """
+$APP_ID = '{0}'
+[Windows.UI.Notifications.ToastNotificationManager]::History.Clear($APP_ID)
+""".format(self.config.APP_ID)
+		path = os.path.dirname(os.path.realpath(__file__)) + "\\"
+		text_file = open(path + "script.ps1", "w")
+		text_file.write(script)
+		text_file.close()
+		subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "script.ps1"])
+		os.remove(path + "script.ps1")
 
 
 def getToast(title, message, icon="", iconCrop=CROP_NONE, duration=DURATION_SHORT, appId="", isMute=True):
