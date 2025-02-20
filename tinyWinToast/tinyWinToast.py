@@ -177,7 +177,7 @@ class Input:
 	def addSelection(self, id, content):
 		self.selections.append(id, content)
 
-def Init():
+def ToastInit():
 	"""Load PoshWinRT.dll for button callback"""
 	script = '''Invoke-WebRequest https://github.com/GitHub30/PoshWinRT/releases/download/1.2/PoshWinRT.dll -OutFile PoshWinRT.dll'''
 	path = os.path.dirname(os.path.realpath(__file__)) + "\\"

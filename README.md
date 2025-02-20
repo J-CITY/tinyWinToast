@@ -27,6 +27,7 @@ Or you can create toast object
 New# Button and Inputs callback (WIP)
 TODO: Need way run PS1 script and not close the process
 ```python
+ToastInit() #Load PoshWinRT.dll for catch events from toasts
 toast = Toast()
 toast.config.USE_ACTIONS_CALLBACK = True # Set that we get information about actions
 toast.setTitle("TITLE", maxLines=1)
