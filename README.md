@@ -27,9 +27,14 @@ Or you can create toast object
 New# Button and Inputs callback (WIP)
 TODO: Need way run PS1 script and not close the process
 ```python
-ToastInit() #Load PoshWinRT.dll for catch events from toasts
+# Load PoshWinRT.dll for catch events from toasts
+# Init supporn get info from toast actions (if param is True)
+# Init PowerShell process
+ToastInit(True) 
+
 toast = Toast()
-toast.config.USE_ACTIONS_CALLBACK = True # Set that we get information about actions
+ # Set that if want get information from toast acction
+toast.config.USE_ACTIONS_CALLBACK = True
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
 toast.addButton(
@@ -41,8 +46,11 @@ toast.show()
 
 time.sleep(9)
 
+# Get toasts actions as string list
 print(toast.getEventListenerOutput())
-#TOAST_DATA:arguments:Button;textBox:[[Select, 1],[Text, 42],];
+
+# Deinit all
+ToastDeinit()
 ```
 
 
@@ -61,12 +69,14 @@ toast.show()
 1# More text and circle crop
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
 toast.addText("MORE TEXT", maxLines=1)
 toast.setIcon('image.png', crop=CROP_CIRCLE)
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/1.png)
@@ -74,6 +84,7 @@ toast.show()
 2# Add hero image
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
@@ -81,6 +92,7 @@ toast.addText("MORE TEXT", maxLines=1)
 toast.setIcon('icon.jpg', crop=CROP_CIRCLE)
 toast.setHeroImage("heroimage.jpg")
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/2.png)
@@ -88,6 +100,7 @@ toast.show()
 3# Add image
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
@@ -95,6 +108,7 @@ toast.addText("MORE TEXT", maxLines=1)
 toast.setIcon('icon.jpg', crop=CROP_CIRCLE)
 toast.setImage("image.jpg")
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/3.png)
@@ -102,6 +116,7 @@ toast.show()
 4# More images
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
@@ -112,6 +127,7 @@ toast.addImage("image.jpg")
 toast.addImage("image.jpg")
 toast.addImage("image.jpg")
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/4.png)
@@ -119,12 +135,14 @@ toast.show()
 5# Text attribute
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
 toast.addText("from email", placement="attribution", maxLines=1)
 toast.setIcon('icon.jpg', crop=CROP_CIRCLE)
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/5.png)
@@ -132,12 +150,14 @@ toast.show()
 6# Toast time 
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
 toast.setTime("2019-07-13T18:49:37.00Z")
 toast.setIcon('icon.jpg', crop=CROP_CIRCLE)
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/6.png)
@@ -145,6 +165,7 @@ toast.show()
 7# Add group text
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
@@ -153,6 +174,7 @@ toast.addGroupText("Message", maxLines=1, style=TEXT_STYLE_CAPTION_SUBTLE, align
 toast.addGroupText("Message", maxLines=1, style=TEXT_STYLE_BASE, align=TEXT_ALIGN_RIGHT)
 toast.setIcon('icon.jpg', crop=CROP_CIRCLE)
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/7.png)
@@ -160,12 +182,14 @@ toast.show()
 8# Toast progress
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
 toast.addProgress(Progress(title="Title", value="0.6", valueStringOverride="15/20", status="Save..."))
 toast.setIcon('icon.jpg', crop=CROP_CIRCLE)
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/8.png)
@@ -173,6 +197,7 @@ toast.show()
 Update toast data
 
 ```puthon
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
@@ -188,11 +213,13 @@ toast.setProgress(Progress(title="Title", value="0.9", valueStringOverride="19/2
 d = {'progressValue': "0.9", 'progressValueString': "19/20"}
 #toast.show() # if you wand update all toast
 toast.update(200, d)
+ToastDeinit()
 ```
 
 9# Buttons and inputs
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=1)
 toast.setMessage("MESSAGE", maxLines=1)
@@ -202,6 +229,7 @@ toast.addButton(Button(content="Play", activationType=ACTION_TYPE_BACKGROUND, ar
 toast.addButton(Button(content="Pause", activationType=ACTION_TYPE_BACKGROUND, arguments="http://www.google.com", pendingUpdate=False))
 toast.setIcon('icon.jpg', crop=CROP_CIRCLE)
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/9.png)
@@ -209,27 +237,33 @@ toast.show()
 Also, you can load toast from script, or xml
 
 ```python
+ToastInit(False)
 toast.showFromXml("APP_ID", "XML_STRING")
 toast.startFromScript(path_to_script.ps1)
 toast.updateFromScript(path_to_script.ps1)
+ToastDeinit()
 ```
 
 Also you can creage Config() and set some params
 ```python
+ToastInit(False)
 config = Config()
 config.APP_ID = "myApp"
 config.DURATION = DURATION_LONG
 ...
 toast = Toast(config)
+ToastDeinit()
 ```
 
 or 
 
 ```python
+ToastInit(False)
 config = Config()
 config.APP_ID = "myApp"
 config.DURATION = DURATION_LONG
 ...
 toast = Toast()
 toast.setConfig(config)
+ToastDeinit()
 ```
