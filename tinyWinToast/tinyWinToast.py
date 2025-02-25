@@ -7,6 +7,8 @@ from xml.dom import minidom
 import os
 import subprocess
 import io
+import threading
+import queue
 
 TEXT_ALIGN_LEFT = "left"
 TEXT_ALIGN_RIGHT = "right"
@@ -37,6 +39,28 @@ INPUT_SELECTION = "selection"
 
 ACTION_INPUT = "input"
 ACTION_BUTTON = "button"
+
+class GlobalState:
+	def __init__(self):
+		pass
+
+	SHELL_PROCESS = None
+	SHELL_COMMAND = ["PowerShell", "-NoExit", "-ExecutionPolicy", "Bypass"]
+
+	STDOUT_QUEUE = queue.Queue()
+	STDERR_QUEUE = queue.Queue()
+
+	USE_ACTION_CALLBACKS = True
+
+def enqueue_output(pipe, output_queue):
+	if pipe.closed:
+		return
+	try:
+		for line in iter(pipe.readline, b''):
+			output_queue.put(line)
+	except:
+		pass
+
 
 class Config:
 	def __init__(self):
@@ -177,8 +201,11 @@ class Input:
 	def addSelection(self, id, content):
 		self.selections.append(id, content)
 
-def ToastInit():
-	"""Load PoshWinRT.dll for button callback"""
+def ToastInit(useActionsCallback=True):
+	"""Load PoshWinRT.dll for button callback and start process for run shall scripts"""
+
+	GlobalState.USE_ACTION_CALLBACKS = useActionsCallback
+
 	script = '''Invoke-WebRequest https://github.com/GitHub30/PoshWinRT/releases/download/1.2/PoshWinRT.dll -OutFile PoshWinRT.dll'''
 	path = os.path.dirname(os.path.realpath(__file__)) + "\\"
 	text_file = open(path + "script.ps1", "w")
@@ -186,6 +213,35 @@ def ToastInit():
 	text_file.close()
 	subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "script.ps1"])
 	os.remove(path + "script.ps1")
+
+	# Command to start a new PowerShell process
+	if GlobalState.SHELL_PROCESS is not None:
+		GlobalState.SHELL_PROCESS.kill()
+
+	GlobalState.SHELL_PROCESS = subprocess.Popen(GlobalState.SHELL_COMMAND, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+	if GlobalState.USE_ACTION_CALLBACKS:
+		GlobalState.STDOUT_THREAD = threading.Thread(target=enqueue_output, args=(GlobalState.SHELL_PROCESS.stdout, GlobalState.STDOUT_QUEUE))
+		GlobalState.STDERR_THREAD = threading.Thread(target=enqueue_output, args=(GlobalState.SHELL_PROCESS.stderr, GlobalState.STDERR_QUEUE))
+		GlobalState.STDOUT_THREAD.start()
+		GlobalState.STDERR_THREAD.start()
+
+def ToastDeinit():
+	"""Delete cache file toast.ps1 and kill powershell process """
+
+	if GlobalState.SHELL_PROCESS is not None:
+		GlobalState.SHELL_PROCESS.communicate()
+	if GlobalState.USE_ACTION_CALLBACKS:
+		if GlobalState.STDOUT_THREAD is not None:
+			GlobalState.STDOUT_THREAD.join()
+			GlobalState.STDOUT_THREAD = None
+		if GlobalState.STDERR_THREAD is not None:
+			GlobalState.STDERR_THREAD.join()
+			GlobalState.STDERR_THREAD = None
+
+	path = os.path.dirname(os.path.realpath(__file__)) + "\\"
+	os.remove(path + "toast.ps1")
+
+
 class Toast:
 	def __init__(self, config=None):
 		"""Init
@@ -555,7 +611,7 @@ $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
 $xml.LoadXml($template)
 $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 '''
-		if self.config.USE_ACTIONS_CALLBACK:
+		if self.config.USE_ACTIONS_CALLBACK and len(self.config.ACTIONS) > 0:
 			tail += '''
 function WrapToastEvent {
   param($target, $eventName)
@@ -566,13 +622,17 @@ function WrapToastEvent {
 }
 
 Register-ObjectEvent -InputObject (WrapToastEvent $toast 'Activated') -EventName FireEvent -Action {
-  $setStr = "["
-  foreach ($h in $args[1].Result.userinput) {
-    $setStr = $setStr + "$($h),"
-  }
-  $setStr = $setStr + "]"
-  $formattedString = "TOAST_DATA:arguments:{0};textBox:{1};" -f $args[1].Result.Arguments, $setStr
-  Write-Output $formattedString | Out-File -FilePath ./Output;
+  # $setStr = "["
+  # foreach ($h in $args[1].Result.userinput) {
+  #   $setStr = $setStr + "$($h),"
+  # }
+  # $setStr = $setStr + "]"
+  # $formattedString = "TOAST_DATA:arguments:{0};textBox:{1};" -f $args[1].Result.Arguments, $setStr
+  # Write-Output $formattedString | Out-File -FilePath ./Output;
+  Write-Host "__BEGIN__"
+  Write-Host $args[1].Result.Arguments
+  Write-Host $args[1].Result.userinput
+  Write-Host "__END__"
 }
 '''
 		if self.config.TAG != "":
@@ -584,8 +644,9 @@ Register-ObjectEvent -InputObject (WrapToastEvent $toast 'Activated') -EventName
 	
 		tail += '.Show($toast)'
 		#TODO: try remove this hack
-		if self.config.USE_ACTIONS_CALLBACK:
-			tail += '\nStart-Sleep -Seconds 15'
+		#if self.config.USE_ACTIONS_CALLBACK and len(self.config.ACTIONS) > 0:
+		#	#tail += '\nStart-Sleep -Seconds 15'
+		#	tail += '\npause'
 		toaststr = head + '\n' + doc.toprettyxml(indent="	").split("\n",1)[1] + '\n' + tail
 
 		#print(toaststr)
@@ -602,31 +663,47 @@ Register-ObjectEvent -InputObject (WrapToastEvent $toast 'Activated') -EventName
 		text_file = open(path + "toast.ps1", "w")
 		text_file.write(toaststr)
 		text_file.close()
-		#if self.config.USE_ACTIONS_CALLBACK:
-		#	self.process = subprocess.Popen(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "toast.ps1"], stdout=subprocess.PIPE)
-		#else:
-		subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "toast.ps1"])
+
+		if GlobalState.SHELL_PROCESS is None:
+			ToastInit()
+		powershellCommand = path + "toast.ps1\n"
+		GlobalState.SHELL_PROCESS.stdin.write(powershellCommand)
+		GlobalState.SHELL_PROCESS.stdin.flush()
+		#subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "toast.ps1"])
 		#os.remove(path + "toast.ps1")
 
-	#TODO: add file watch
 	def getEventListenerOutput(self):
-		with open('./Output', 'r') as file:
-			return file.read()
+		if GlobalState.SHELL_PROCESS is None:
+			ToastInit()
 
-		#if self.process is None:
-		#	return ""
-		#result = []
-		#for line in io.TextIOWrapper(self.process.stdout, encoding="utf-8"):
-		#	print(line)
-		#	if (line.startswith("TOAST_DATA:")):
-		#		result.append(line)
-		#return result
-	
-	#def killListener(self):
-	#	if self.process is None:
-	#		return
-	#	self.process.kill()
-	#	self.process = None
+		if GlobalState.USE_ACTION_CALLBACKS == False:
+			return []
+
+		isStartRead = False
+		result = []
+		# GlobalState.SHELL_PROCESS.stdin.write("\n")
+		while True:
+			try:
+				line = GlobalState.STDOUT_QUEUE.get_nowait()
+				print(line)
+				if ('__BEGIN__' in line):
+					isStartRead = True
+					continue
+				if ('__END__' in line):
+					isStartRead = False
+					break
+				if (isStartRead):
+					result.append(line)
+			except queue.Empty:
+				break
+
+			if GlobalState.SHELL_PROCESS.poll() is not None and GlobalState.STDOUT_QUEUE.empty() and GlobalState.STDERR_QUEUE.empty():
+				break
+
+		GlobalState.SHELL_PROCESS.stdin.write("\nclear\n")
+		GlobalState.SHELL_PROCESS.stdin.flush()
+
+		return result
 
 	def update(self, sequenceId, data):
 		"""Update toast"""
@@ -692,6 +769,9 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 		text_file.write(toaststr)
 		text_file.close()
 
+		if GlobalState.SHALL_PROCESS is None:
+			ToastInit()
+
 		subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "toast.ps1"])
 		os.remove(path + "toast.ps1")
 
@@ -700,6 +780,9 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 		
 		:scriptPath: script.ps1 path
 		"""
+		if GlobalState.SHALL_PROCESS is None:
+			ToastInit()
+
 		subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", scriptPath])
 
 	def updateFromScript(self, scriptPath):
@@ -707,6 +790,9 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 		
 		:scriptPath: script.ps1 path
 		"""
+		if GlobalState.SHALL_PROCESS is None:
+			ToastInit()
+
 		subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", scriptPath])
 
 	def clearToasts(self):
@@ -720,6 +806,10 @@ $APP_ID = '{0}'
 		text_file = open(path + "script.ps1", "w")
 		text_file.write(script)
 		text_file.close()
+
+		if GlobalState.SHALL_PROCESS is None:
+			ToastInit()
+
 		subprocess.run(["PowerShell", "-ExecutionPolicy", "Bypass", "-File", path + "script.ps1"])
 		os.remove(path + "script.ps1")
 
@@ -733,6 +823,8 @@ def getToast(title, message, icon="", iconCrop=CROP_NONE, duration=DURATION_SHOR
 	:iconCrop: crop icon /none/circle
 	:duration: duration /short/long
 	"""
+
+	ToastInit(False)
 	toast = Toast()
 	if appId != "":
 		toast.setAppID(appId)
@@ -743,6 +835,7 @@ def getToast(title, message, icon="", iconCrop=CROP_NONE, duration=DURATION_SHOR
 	toast.setDuration(duration)
 	if isMute:
 		toast.setAudio(Audio(True))
+	ToastDeinit()
 	return toast
 
 #toast = Toast()
