@@ -57,11 +57,13 @@ ToastDeinit()
 0# Simple toast
 
 ```python
+ToastInit(False)
 toast = Toast()
 toast.setTitle("TITLE", maxLines=2)
 toast.setMessage("MESSAGE", maxLines=2)
 toast.setIcon('image.png', crop=CROP_NONE)
 toast.show()
+ToastDeinit()
 ```
 
 ![Imgur](https://github.com/J-CITY/TinyWinToast/blob/master/screens/0.png)
